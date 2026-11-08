@@ -1,8 +1,29 @@
+<div align="center">
+
 # ServerDock
 
-친구끼리 쓰는 마인크래프트 서버를 웹에서 만들고, 켜고, 관리하는 셀프호스팅 도구다.
+**친구끼리 쓰는 마인크래프트 서버를 웹에서 만들고, 켜고, 관리하는 셀프호스팅 도구**
+
+![Java](https://img.shields.io/badge/Java-25-ED8B00?logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F?logo=springboot&logoColor=white)
+![MariaDB](https://img.shields.io/badge/MariaDB-11.8-003545?logo=mariadb&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![Status](https://img.shields.io/badge/status-in%20development-yellow)
+
+</div>
 
 > 개발 중이다. 지금은 계정, 서버 설정, 멤버와 권한, 초대 링크 API까지 동작하고, 실제 마인크래프트 서버를 띄우는 Docker 연동이 다음 단계다.
+
+## 목차
+
+- [왜 만들었나](#왜-만들었나)
+- [기능](#기능)
+- [구조](#구조)
+- [권한 규칙](#권한-규칙)
+- [시작하기](#시작하기)
+- [API 문서](#api-문서)
+- [프로젝트 구조](#프로젝트-구조)
+- [로드맵](#로드맵)
 
 ## 왜 만들었나
 
@@ -10,35 +31,70 @@
 - 서버가 한 사람의 컴퓨터에 묶여 있어서, 주인이 없으면 친구들이 서버를 켤 수 없다.
 - 서버가 켜져 있는지, 누가 접속 중인지 보려면 터미널을 열어야 한다.
 
+ServerDock은 이걸 웹 대시보드와 디스코드 명령 하나로 해결하는 것을 목표로 한다.
+
 ## 기능
 
 | 기능 | 상태 |
-| --- | --- |
-| 회원가입, 로그인 (JWT) | 완료 |
-| 서버 생성, 설정 변경, 삭제 | 완료 |
-| 서버별 역할 (OWNER / ADMIN / MEMBER) | 완료 |
-| 초대 링크 (만료 시간, 사용 횟수 제한) | 완료 |
-| 멤버 관리 (역할 변경, 내보내기, 나가기) | 완료 |
-| Docker로 마인크래프트 서버 실행, 실시간 콘솔 | 예정 |
-| 디스코드 봇, 월드 백업 | 예정 |
+| --- | :---: |
+| 회원가입, 로그인 (JWT) | ✅ |
+| 서버 생성, 설정 변경, 삭제 | ✅ |
+| 서버별 역할 (OWNER / ADMIN / MEMBER) | ✅ |
+| 초대 링크 (만료 시간, 사용 횟수 제한) | ✅ |
+| 멤버 관리 (역할 변경, 내보내기, 나가기) | ✅ |
+| Docker로 마인크래프트 서버 실행, 실시간 콘솔 | 🛠️ |
+| 디스코드 봇 (서버 켜기, 상태 알림) | 🛠️ |
+| 월드 자동 백업과 복원 | 🛠️ |
 
-## 기술 스택
+✅ 완료 · 🛠️ 예정
 
-| 영역 | 사용 기술 |
-| --- | --- |
-| 백엔드 | Java 25, Spring Boot 4.1, Spring Security (OAuth2 Resource Server, JWT), Spring Data JPA |
-| DB | MariaDB 11.8, Flyway |
-| API 문서 | springdoc-openapi (Swagger UI) |
-| 실행 환경 | Docker Compose |
-| 프론트엔드 (예정) | React, TypeScript |
+## 구조
 
-## 개발 환경 실행
+모든 구성 요소가 사용자 컴퓨터 한 대에서 돈다. 점선은 아직 만들지 않은 부분이다.
 
-필요한 것: JDK 25, Docker (macOS는 OrbStack 권장)
+```mermaid
+flowchart LR
+    Web["웹 대시보드<br/>(React, 예정)"] -.->|REST / WebSocket| API
+    Bot["디스코드 봇<br/>(예정)"] -.-> API
 
-1. DB 실행: `docker compose -f deploy/compose.dev.yaml up -d --wait`
-2. 백엔드 실행: `cd backend && ./gradlew bootRun`
-3. 개발용 관리자 계정은 서버가 시작할 때 자동으로 만들어진다: `admin` / `admin`
+    subgraph Host["사용자 컴퓨터"]
+        API["Spring Boot API<br/>인증 · 권한 · 서버 관리"] --> DB[("MariaDB")]
+        API -.->|Docker API| MC["마인크래프트 서버<br/>(컨테이너)"]
+    end
+
+    Friends["친구들의 마인크래프트"] -.->|게임 접속| MC
+```
+
+요청은 토큰 검사(401) → 입력값 검사(400) → 서버별 권한 검사(404/403) → DB 제약(409) 순서로 걸러지고, 모든 오류는 같은 형식(`ProblemDetail`)으로 응답한다.
+
+## 권한 규칙
+
+서버를 만들 수 있는 사람은 시스템 관리자뿐이고, 서버 안에서는 역할별로 할 수 있는 일이 나뉜다.
+
+| 작업 | OWNER | ADMIN | MEMBER | 외부인 |
+| --- | :---: | :---: | :---: | :---: |
+| 서버 보기, 멤버 목록 보기 | ✅ | ✅ | ✅ | ❌ |
+| 서버 설정 변경, 삭제 | ✅ | ❌ | ❌ | ❌ |
+| MEMBER 초대 | ✅ | ✅ | ❌ | ❌ |
+| ADMIN 초대, 역할 변경 | ✅ | ❌ | ❌ | ❌ |
+| 다른 멤버 내보내기 | ADMIN, MEMBER | MEMBER | ❌ | ❌ |
+| 스스로 나가기 | ❌ | ✅ | ✅ | - |
+
+외부인에게는 403이 아니라 404로 응답해서 서버가 있다는 사실 자체를 숨긴다.
+
+## 시작하기
+
+**필요한 것**: JDK 25, Docker (macOS는 [OrbStack](https://orbstack.dev) 권장)
+
+```bash
+# 1. DB 실행
+docker compose -f deploy/compose.dev.yaml up -d --wait
+
+# 2. 백엔드 실행
+cd backend && ./gradlew bootRun
+```
+
+개발용 관리자 계정은 백엔드가 시작할 때 자동으로 만들어진다: `admin` / `admin`
 
 DB를 초기화하려면 `docker compose -f deploy/compose.dev.yaml down -v`로 지운 뒤 다시 띄우고, 백엔드를 재시작한다. 테이블은 백엔드가 시작할 때 Flyway가 만든다.
 
@@ -60,8 +116,6 @@ serverdock/
 └── docs/       문서
 ```
 
-백엔드는 기능 단위로 패키지를 나눴다.
-
 | 패키지 | 역할 |
 | --- | --- |
 | `common` | 보안 설정, JWT, 공통 예외 처리 |
@@ -69,3 +123,14 @@ serverdock/
 | `server` | 서버 설정, 멤버와 역할, 서버별 권한 검사 |
 | `invite` | 초대 링크 생성, 폐기, 수락 |
 | `docker`, `backup`, `discord` | 다음 단계에서 구현 |
+
+## 로드맵
+
+- [x] 계정, 로그인, 시스템 관리자
+- [x] 서버 생성과 설정, 서버별 권한
+- [x] 초대 링크와 멤버 관리
+- [ ] Docker로 마인크래프트 서버 실행, 시작/중지, 실시간 콘솔
+- [ ] 서버 삭제 시 2일간 휴지통 보관
+- [ ] 웹 대시보드 (React)
+- [ ] 디스코드 봇, 월드 자동 백업
+- [ ] `docker compose` 한 번으로 설치
