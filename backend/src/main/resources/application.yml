@@ -20,3 +20,8 @@ management:
     web:
       exposure:
         include: health,info
+
+serverdock:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-secret-do-not-use-in-production-0123456789}
+    expiry: 12h
