@@ -14,4 +14,11 @@ public enum ServerRole {
     public boolean isAtLeast(ServerRole required) {
         return this.ordinal() <= required.ordinal();
     }
+
+    /**
+     * 이 역할이 other보다 높은지. 같은 역할이면 false.
+     */
+    public boolean outranks(ServerRole other) {
+        return this.ordinal() < other.ordinal();
+    }
 }

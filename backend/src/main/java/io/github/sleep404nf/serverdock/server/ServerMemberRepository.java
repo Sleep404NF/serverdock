@@ -13,6 +13,12 @@ public interface ServerMemberRepository extends JpaRepository<ServerMember, Serv
     List<ServerMember> findAllByUserIdWithServer(@Param("userId") Long userId);
 
     /**
+     * 서버의 멤버 목록을 사용자 정보와 함께 한 번에 가져온다.
+     */
+    @Query("select m from ServerMember m join fetch m.user where m.server.id = :serverId")
+    List<ServerMember> findAllByServerIdWithUser(@Param("serverId") Long serverId);
+
+    /**
      * 서버를 지우기 전에 멤버를 한 번의 쿼리로 지운다.
      */
     @Modifying(clearAutomatically = true)
