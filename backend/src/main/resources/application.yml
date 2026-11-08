@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: serverdock-backend
+  datasource:
+    url: jdbc:mariadb://localhost:3307/serverdock
+    username: ${DB_USERNAME:serverdock}
+    password: ${DB_PASSWORD:serverdock}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
