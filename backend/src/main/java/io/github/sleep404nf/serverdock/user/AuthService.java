@@ -16,7 +16,7 @@ public class AuthService {
     private final TokenService tokenService;
 
     /**
-     * 회원가입. 첫 가입자는 ADMIN, 그다음부터는 USER가 된다.
+     * 회원가입. 가입자는 항상 USER가 된다. 관리자는 AdminInitializer가 시작할 때 만든다.
      */
     @Transactional
     public UserResponse signup(SignupRequest request) {
@@ -24,8 +24,7 @@ public class AuthService {
             throw new BusinessException(HttpStatus.CONFLICT, "이미 사용 중인 아이디입니다.");
         }
 
-        SystemRole role = userRepository.count() == 0 ? SystemRole.ADMIN : SystemRole.USER;
-        User user = User.create(request.username(), passwordEncoder.encode(request.password()), role);
+        User user = User.create(request.username(), passwordEncoder.encode(request.password()), SystemRole.USER);
 
         return UserResponse.from(userRepository.save(user));
     }

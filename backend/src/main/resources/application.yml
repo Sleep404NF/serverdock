@@ -25,3 +25,6 @@ serverdock:
   jwt:
     secret: ${JWT_SECRET:dev-only-secret-do-not-use-in-production-0123456789}
     expiry: 12h
+  admin:
+    username: ${ADMIN_USERNAME:admin}
+    password: ${ADMIN_PASSWORD:admin}

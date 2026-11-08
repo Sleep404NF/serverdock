@@ -75,7 +75,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"myadmin01\",\n  \"password\": \"password123\"\n}",
+              "raw": "{\n  \"username\": \"friend01\",\n  \"password\": \"password123\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -85,7 +85,7 @@
             "auth": {
               "type": "noauth"
             },
-            "description": "첫 가입자는 ADMIN이 된다."
+            "description": "가입자는 항상 USER. 아이디 6~20자(영문, 숫자, _), 비밀번호 8~72자."
           }
         },
         {
@@ -111,7 +111,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"myadmin01\",\n  \"password\": \"password123\"\n}",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -121,7 +121,7 @@
             "auth": {
               "type": "noauth"
             },
-            "description": "성공하면 accessToken을 {{token}}에 저장한다."
+            "description": "개발용 관리자는 admin / admin (서버 시작 시 자동 생성). 성공하면 accessToken을 {{token}}에 저장한다."
           },
           "event": [
             {
