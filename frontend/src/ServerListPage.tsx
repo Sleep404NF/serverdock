@@ -62,7 +62,9 @@ export default function ServerListPage({ onLogout }: Props) {
           <tbody>
             {servers.map((server) => (
               <tr key={server.id}>
-                <td>{server.name}</td>
+                <td>
+                  <a href={`#/servers/${server.id}`}>{server.name}</a>
+                </td>
                 <td>{server.gameVersion}</td>
                 <td>{server.loader}</td>
                 <td>{server.memoryMb} MB</td>

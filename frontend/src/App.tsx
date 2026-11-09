@@ -1,13 +1,30 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { clearToken, getToken } from './api'
 import LoginPage from './LoginPage'
+import ServerDetailPage from './ServerDetailPage'
 import ServerListPage from './ServerListPage'
 
+const SERVER_ROUTE = /^#\/servers\/(\d+)$/
+
 /**
- * 확인용 최소 화면. 토큰이 있으면 서버 목록, 없으면 로그인 화면을 보여준다.
+ * 주소의 # 뒷부분으로 화면을 고른다. #/servers/3이면 3번 서버 화면, 그 외에는 서버 목록.
+ * 새로고침해도 보던 화면이 유지된다.
  */
+function useHash() {
+  const [hash, setHash] = useState(() => window.location.hash)
+
+  useEffect(() => {
+    const handleChange = () => setHash(window.location.hash)
+    window.addEventListener('hashchange', handleChange)
+    return () => window.removeEventListener('hashchange', handleChange)
+  }, [])
+
+  return hash
+}
+
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(() => getToken() !== null)
+  const hash = useHash()
 
   const handleLogout = useCallback(() => {
     clearToken()
@@ -16,6 +33,12 @@ export default function App() {
 
   if (!loggedIn) {
     return <LoginPage onLoggedIn={() => setLoggedIn(true)} />
+  }
+
+  const serverMatch = SERVER_ROUTE.exec(hash)
+  if (serverMatch) {
+    const serverId = Number(serverMatch[1])
+    return <ServerDetailPage key={serverId} serverId={serverId} onLogout={handleLogout} />
   }
 
   return <ServerListPage onLogout={handleLogout} />
