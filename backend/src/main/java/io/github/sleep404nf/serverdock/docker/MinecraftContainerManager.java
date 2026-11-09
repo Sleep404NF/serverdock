@@ -18,6 +18,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -44,6 +47,11 @@ public class MinecraftContainerManager {
     private static final long PULL_TIMEOUT_MINUTES = 10;
     private static final String LABEL_SERVER_ID = "serverdock.server-id";
     private static final String LABEL_CONFIG_HASH = "serverdock.config-hash";
+    /** 포트 확인: 이 주소들로 접속해 보고, 받아주는 프로그램이 있으면 사용 중으로 본다. */
+    private static final List<String> LOOPBACK_ADDRESSES = List.of("127.0.0.1", "::1");
+    private static final int PORT_PROBE_TIMEOUT_MS = 300;
+    private static final int PORT_PROBE_ATTEMPTS = 3;
+    private static final long PORT_PROBE_INTERVAL_MS = 500;
 
     private final DockerClient dockerClient;
     private final DockerProperties dockerProperties;
@@ -58,6 +66,7 @@ public class MinecraftContainerManager {
         if (existing.isPresent() && isRunning(existing.get())) {
             return existing.get().getId();
         }
+        ensurePortFree(spec.port());
 
         String desiredHash = configHash(spec);
         String containerId;
@@ -164,11 +173,55 @@ public class MinecraftContainerManager {
             dockerClient.startContainerCmd(containerId).exec();
         } catch (DockerException e) {
             if (isPortConflict(e)) {
-                throw new BusinessException(HttpStatus.CONFLICT,
-                        "포트 " + port + "를 이미 다른 프로그램이 쓰고 있습니다.");
+                throw portConflict(port);
             }
             throw e;
         }
+    }
+
+    /**
+     * 다른 프로그램이 호스트 포트를 쓰고 있으면 409.
+     * OrbStack(macOS)은 맥 프로그램이 같은 포트를 IPv4로 잡고 있어도 IPv6로 컨테이너 포트를 열어서
+     * Docker가 충돌을 알려주지 않는다. 그대로 두면 서버가 둘 다 켜지고 접속이 어느 쪽으로 갈지 알 수 없다.
+     * 그래서 켜기 전에 직접 접속해 본다. 방금 끈 컨테이너의 포트가 늦게 풀릴 수 있어서 몇 번 다시 확인한다.
+     * 백엔드가 호스트(맥)에서 바로 돌 때 기준이다. 백엔드를 컨테이너로 돌리게 되면 확인할 주소를 바꿔야 한다.
+     */
+    private void ensurePortFree(int port) {
+        for (int attempt = 1; attempt <= PORT_PROBE_ATTEMPTS; attempt++) {
+            if (!isListening(port)) {
+                return;
+            }
+            if (attempt < PORT_PROBE_ATTEMPTS) {
+                pause(PORT_PROBE_INTERVAL_MS);
+            }
+        }
+        throw portConflict(port);
+    }
+
+    private boolean isListening(int port) {
+        for (String address : LOOPBACK_ADDRESSES) {
+            try (Socket socket = new Socket()) {
+                socket.connect(new InetSocketAddress(address, port), PORT_PROBE_TIMEOUT_MS);
+                return true;
+            } catch (IOException e) {
+                // 접속이 안 되면 이 주소로는 아무도 듣고 있지 않다.
+            }
+        }
+        return false;
+    }
+
+    private void pause(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("포트를 확인하는 중에 중단됐습니다.", e);
+        }
+    }
+
+    private BusinessException portConflict(int port) {
+        return new BusinessException(HttpStatus.CONFLICT,
+                "포트 " + port + "번을 이미 다른 프로그램이 쓰고 있습니다. 그 프로그램을 끄거나 서버 포트를 바꿔주세요.");
     }
 
     /**
