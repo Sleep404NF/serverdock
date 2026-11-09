@@ -94,12 +94,10 @@ flowchart LR
 **필요한 것**: JDK 25, Docker (macOS는 [OrbStack](https://orbstack.dev) 권장)
 
 ```bash
-# 1. DB 실행
-docker compose -f deploy/compose.dev.yaml up -d --wait
-
-# 2. 백엔드 실행
 cd backend && ./gradlew bootRun
 ```
+
+DB(MariaDB) 컨테이너는 백엔드가 시작할 때 `deploy/compose.dev.yaml`로 알아서 띄운다(Spring Boot Docker Compose 연동). Docker만 켜져 있으면 된다. 백엔드를 꺼도 DB는 계속 켜져 있다.
 
 개발용 관리자 계정은 백엔드가 시작할 때 자동으로 만들어진다: `admin` / `admin`
 

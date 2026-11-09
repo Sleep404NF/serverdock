@@ -11,6 +11,13 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+  # 개발할 때만 동작한다(developmentOnly 의존성). 백엔드를 켜면 DB 컨테이너를 먼저 띄우고 준비될 때까지 기다린다.
+  # start-only: 백엔드를 꺼도 DB는 계속 켜 둔다. 재시작이 빨라진다.
+  # 경로는 저장소 최상위 폴더 기준이다(IntelliJ 실행 설정과 bootRun 모두 그 폴더에서 실행).
+  docker:
+    compose:
+      file: deploy/compose.dev.yaml
+      lifecycle-management: start-only
 
 server:
   port: 8080

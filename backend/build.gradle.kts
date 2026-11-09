@@ -31,6 +31,7 @@ dependencies {
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.2.0")
 	implementation("com.github.docker-java:docker-java-core:3.6.0")
 	implementation("com.github.docker-java:docker-java-transport-httpclient5:3.6.0")
+	developmentOnly("org.springframework.boot:spring-boot-docker-compose")
 	compileOnly("org.projectlombok:lombok")
 	runtimeOnly("org.mariadb.jdbc:mariadb-java-client")
 	annotationProcessor("org.projectlombok:lombok")
@@ -48,4 +49,9 @@ dependencies {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+}
+
+// IntelliJ 실행 설정과 같이 저장소 최상위 폴더에서 실행한다. application.yml의 deploy/ 경로가 이 폴더 기준이다.
+tasks.bootRun {
+	workingDir = projectDir.parentFile
 }
