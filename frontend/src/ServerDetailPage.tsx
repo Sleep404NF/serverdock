@@ -2,6 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { ApiError, changePower, fetchServer, fetchStatus, hasRoleAtLeast } from './api'
 import type { PowerAction, Server, ServerStatus, ServerStatusResponse } from './api'
 import Console from './Console'
+import InvitesPanel from './InvitesPanel'
+import MembersPanel from './MembersPanel'
+
+export type ServerTab = 'console' | 'members' | 'invites'
 
 const STATUS_LABEL: Record<ServerStatus, string> = {
   NOT_CREATED: '아직 안 켬',
@@ -16,10 +20,11 @@ const POLL_SLOW_MS = 10000
 
 interface Props {
   serverId: number
+  tab: ServerTab
   onLogout: () => void
 }
 
-export default function ServerDetailPage({ serverId, onLogout }: Props) {
+export default function ServerDetailPage({ serverId, tab, onLogout }: Props) {
   const [server, setServer] = useState<Server | null>(null)
   const [status, setStatus] = useState<ServerStatusResponse | null>(null)
   const [pageError, setPageError] = useState<string | null>(null)
@@ -155,7 +160,37 @@ export default function ServerDetailPage({ serverId, onLogout }: Props) {
             {statusError && <p className="error">{statusError}</p>}
           </section>
 
-          <Console serverId={serverId} status={currentStatus} canCommand={canManage} onUnauthorized={onLogout} />
+          <nav className="tabs" aria-label="서버 메뉴">
+            <a href={`#/servers/${serverId}`} aria-current={tab === 'console' ? 'page' : undefined}>
+              콘솔
+            </a>
+            <a href={`#/servers/${serverId}/members`} aria-current={tab === 'members' ? 'page' : undefined}>
+              멤버
+            </a>
+            {canManage && (
+              <a href={`#/servers/${serverId}/invites`} aria-current={tab === 'invites' ? 'page' : undefined}>
+                초대 링크
+              </a>
+            )}
+          </nav>
+
+          {/* 콘솔은 다른 탭에 가 있어도 연결과 명령어 기록을 유지하도록 숨기기만 한다. */}
+          <div hidden={tab !== 'console'}>
+            <Console
+              serverId={serverId}
+              status={currentStatus}
+              canCommand={canManage}
+              visible={tab === 'console'}
+              onUnauthorized={onLogout}
+            />
+          </div>
+          {tab === 'members' && <MembersPanel serverId={serverId} myRole={server.myRole} onLogout={onLogout} />}
+          {tab === 'invites' &&
+            (canManage ? (
+              <InvitesPanel serverId={serverId} myRole={server.myRole} onLogout={onLogout} />
+            ) : (
+              <p className="muted">초대 링크는 ADMIN 이상만 볼 수 있습니다.</p>
+            ))}
         </>
       )}
     </main>

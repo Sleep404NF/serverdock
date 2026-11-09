@@ -1,14 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
 import { clearToken, getToken } from './api'
+import InvitePage from './InvitePage'
 import LoginPage from './LoginPage'
 import ServerDetailPage from './ServerDetailPage'
+import type { ServerTab } from './ServerDetailPage'
 import ServerListPage from './ServerListPage'
 
-const SERVER_ROUTE = /^#\/servers\/(\d+)$/
+const SERVER_ROUTE = /^#\/servers\/(\d+)(?:\/(members|invites))?$/
+const INVITE_ROUTE = /^#\/invite\/([A-Za-z0-9_-]+)$/
 
 /**
- * 주소의 # 뒷부분으로 화면을 고른다. #/servers/3이면 3번 서버 화면, 그 외에는 서버 목록.
- * 새로고침해도 보던 화면이 유지된다.
+ * 주소의 # 뒷부분으로 화면을 고른다. 새로고침해도 보던 화면이 유지된다.
+ * - #/servers/3            3번 서버 (콘솔)
+ * - #/servers/3/members    3번 서버 멤버
+ * - #/servers/3/invites    3번 서버 초대 링크
+ * - #/invite/코드           초대 수락
+ * - 그 외                   서버 목록
  */
 function useHash() {
   const [hash, setHash] = useState(() => window.location.hash)
@@ -31,14 +38,27 @@ export default function App() {
     setLoggedIn(false)
   }, [])
 
+  const inviteMatch = INVITE_ROUTE.exec(hash)
+
   if (!loggedIn) {
-    return <LoginPage onLoggedIn={() => setLoggedIn(true)} />
+    // 로그인하면 주소는 그대로라서, 초대 링크로 왔다면 로그인 뒤 바로 초대 화면이 나온다.
+    return (
+      <LoginPage
+        onLoggedIn={() => setLoggedIn(true)}
+        notice={inviteMatch ? '서버에 초대받았습니다. 로그인하거나 가입하면 참가할 수 있습니다.' : undefined}
+      />
+    )
+  }
+
+  if (inviteMatch) {
+    return <InvitePage code={inviteMatch[1]} onLogout={handleLogout} />
   }
 
   const serverMatch = SERVER_ROUTE.exec(hash)
   if (serverMatch) {
     const serverId = Number(serverMatch[1])
-    return <ServerDetailPage key={serverId} serverId={serverId} onLogout={handleLogout} />
+    const tab = (serverMatch[2] ?? 'console') as ServerTab
+    return <ServerDetailPage key={serverId} serverId={serverId} tab={tab} onLogout={handleLogout} />
   }
 
   return <ServerListPage onLogout={handleLogout} />

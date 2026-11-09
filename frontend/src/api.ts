@@ -34,6 +34,35 @@ export interface ConsoleCommandResponse {
   output: string
 }
 
+export interface Member {
+  userId: number
+  username: string
+  role: ServerRole
+  joinedAt: string
+}
+
+export type InviteExpiry = 'THIRTY_MINUTES' | 'ONE_HOUR' | 'SIX_HOURS' | 'TWELVE_HOURS' | 'ONE_DAY' | 'SEVEN_DAYS'
+
+export interface Invite {
+  id: number
+  code: string
+  role: ServerRole
+  createdBy: string
+  expiresAt: string
+  /** null이면 횟수 제한 없음 */
+  maxUses: number | null
+  usedCount: number
+  /** 만료되지 않았고 횟수도 남아 있어서 지금 쓸 수 있는지 */
+  usable: boolean
+  createdAt: string
+}
+
+export interface CreateInviteInput {
+  role: ServerRole
+  expiresIn: InviteExpiry
+  maxUses: number | null
+}
+
 const ROLE_RANK: Record<ServerRole, number> = { MEMBER: 0, ADMIN: 1, OWNER: 2 }
 
 /**
@@ -41,6 +70,18 @@ const ROLE_RANK: Record<ServerRole, number> = { MEMBER: 0, ADMIN: 1, OWNER: 2 }
  */
 export function hasRoleAtLeast(role: ServerRole, required: ServerRole) {
   return ROLE_RANK[role] >= ROLE_RANK[required]
+}
+
+/** role이 other보다 높은 역할인지. 자기보다 낮은 역할만 내보낼 수 있다. */
+export function outranks(role: ServerRole, other: ServerRole) {
+  return ROLE_RANK[role] > ROLE_RANK[other]
+}
+
+/** 백엔드와 같은 순서: 높은 역할 먼저, 같은 역할은 먼저 들어온 순 */
+export function sortMembers(members: Member[]) {
+  return [...members].sort(
+    (a, b) => ROLE_RANK[b.role] - ROLE_RANK[a.role] || a.joinedAt.localeCompare(b.joinedAt),
+  )
 }
 
 /**
@@ -80,9 +121,18 @@ function authHeaders(): Headers {
   return headers
 }
 
+/**
+ * ProblemDetail을 ApiError로 바꾼다. 입력값 오류(errors)가 있으면 "입력값이 올바르지 않습니다." 대신
+ * 첫 번째 필드 오류("아이디는 6~20자여야 합니다." 등)를 보여준다.
+ */
 async function toApiError(response: Response): Promise<ApiError> {
   const problem = await response.json().catch(() => null)
-  return new ApiError(response.status, problem?.detail ?? `요청에 실패했습니다. (${response.status})`)
+  const fieldErrors: unknown[] = problem?.errors ? Object.values(problem.errors) : []
+  const firstFieldError = fieldErrors.find((value): value is string => typeof value === 'string')
+  return new ApiError(
+    response.status,
+    firstFieldError ?? problem?.detail ?? `요청에 실패했습니다. (${response.status})`,
+  )
 }
 
 /**
@@ -113,6 +163,13 @@ export async function login(username: string, password: string) {
   setToken(accessToken)
 }
 
+export async function signup(username: string, password: string) {
+  await request('/api/auth/signup', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  })
+}
+
 export function fetchMe() {
   return request<Me>('/api/auth/me')
 }
@@ -140,6 +197,46 @@ export function sendCommand(serverId: number, command: string) {
     method: 'POST',
     body: JSON.stringify({ command }),
   })
+}
+
+export function fetchMembers(serverId: number) {
+  return request<Member[]>(`/api/servers/${serverId}/members`)
+}
+
+export function changeMemberRole(serverId: number, userId: number, role: ServerRole) {
+  return request<Member>(`/api/servers/${serverId}/members/${userId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ role }),
+  })
+}
+
+/** 다른 멤버면 내보내기, 나 자신이면 나가기 */
+export function removeMember(serverId: number, userId: number) {
+  return request<void>(`/api/servers/${serverId}/members/${userId}`, { method: 'DELETE' })
+}
+
+export function fetchInvites(serverId: number) {
+  return request<Invite[]>(`/api/servers/${serverId}/invites`)
+}
+
+export function createInvite(serverId: number, input: CreateInviteInput) {
+  return request<Invite>(`/api/servers/${serverId}/invites`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function revokeInvite(serverId: number, inviteId: number) {
+  return request<void>(`/api/servers/${serverId}/invites/${inviteId}`, { method: 'DELETE' })
+}
+
+export function acceptInvite(code: string) {
+  return request<Server>(`/api/invites/${encodeURIComponent(code)}/accept`, { method: 'POST' })
+}
+
+/** 친구에게 보낼 초대 주소. 지금 보고 있는 화면 주소를 기준으로 만든다. */
+export function inviteUrl(code: string) {
+  return `${window.location.origin}${window.location.pathname}#/invite/${code}`
 }
 
 export interface LogStreamHandlers {

@@ -36,10 +36,12 @@ interface Props {
   serverId: number
   status: ServerStatus | null
   canCommand: boolean
+  /** 다른 탭을 보는 동안에는 숨겨져 있다. 다시 보일 때 맨 아래로 내려간다. */
+  visible: boolean
   onUnauthorized: () => void
 }
 
-export default function Console({ serverId, status, canCommand, onUnauthorized }: Props) {
+export default function Console({ serverId, status, canCommand, visible, onUnauthorized }: Props) {
   const [lines, setLines] = useState<Line[]>([])
   const [connected, setConnected] = useState(false)
   const [retry, setRetry] = useState(0)
@@ -120,7 +122,7 @@ export default function Console({ serverId, status, canCommand, onUnauthorized }
     if (element && stickToBottom.current) {
       element.scrollTop = element.scrollHeight
     }
-  }, [lines])
+  }, [lines, visible])
 
   function handleScroll() {
     const element = logRef.current
