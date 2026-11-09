@@ -267,7 +267,7 @@ public class MinecraftContainerManager {
         return message.contains("port is already allocated") || message.contains("address already in use");
     }
 
-    private static String containerName(long serverId) {
+    static String containerName(long serverId) {
         return "serverdock-server-" + serverId;
     }
 

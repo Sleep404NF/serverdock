@@ -4,12 +4,15 @@ import io.github.sleep404nf.serverdock.common.BusinessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 서버별 권한 검사. 멤버가 아니면 404, 역할이 부족하면 403.
  * 휴지통에 있는 서버는 없는 서버처럼 404로 응답한다.
+ * 트랜잭션 밖(실시간 콘솔)에서 불려도 서버 정보를 읽을 수 있게 자체 트랜잭션을 연다.
  */
 @Component
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class ServerAccessChecker {
 
