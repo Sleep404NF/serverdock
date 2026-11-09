@@ -31,3 +31,5 @@ serverdock:
   docker:
     host: ${DOCKER_HOST:unix:///var/run/docker.sock}
     image: ${MINECRAFT_IMAGE:itzg/minecraft-server:latest}
+  trash:
+    retention: ${TRASH_RETENTION:2d}

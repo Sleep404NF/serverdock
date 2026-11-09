@@ -97,6 +97,9 @@ public class InviteService {
         }
 
         Server server = invite.getServer();
+        if (server.isInTrash()) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "초대 링크를 찾을 수 없습니다.");
+        }
         if (serverMemberRepository.existsById(new ServerMemberId(server.getId(), userId))) {
             throw new BusinessException(HttpStatus.CONFLICT, "이미 이 서버의 멤버입니다.");
         }

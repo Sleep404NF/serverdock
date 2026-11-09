@@ -23,6 +23,7 @@ import java.util.List;
 public class ServerController {
 
     private final ServerService serverService;
+    private final ServerTrashService serverTrashService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -53,7 +54,7 @@ public class ServerController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@AuthenticationPrincipal Jwt jwt,
                        @PathVariable Long serverId) {
-        serverService.delete(userId(jwt), serverId);
+        serverTrashService.moveToTrash(userId(jwt), serverId);
     }
 
     private Long userId(Jwt jwt) {

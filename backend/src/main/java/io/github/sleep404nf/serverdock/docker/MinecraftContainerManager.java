@@ -119,6 +119,23 @@ public class MinecraftContainerManager {
                 .orElse(false);
     }
 
+    /**
+     * 컨테이너와 월드 볼륨을 모두 지운다. 되돌릴 수 없다. 휴지통 보관 기간이 끝난 서버에만 쓴다.
+     */
+    public void removeServer(long serverId) {
+        try {
+            dockerClient.removeContainerCmd(containerName(serverId)).withForce(true).exec();
+        } catch (NotFoundException e) {
+            log.debug("이미 없는 컨테이너입니다: 서버 {}", serverId);
+        }
+        try {
+            dockerClient.removeVolumeCmd(volumeName(serverId)).exec();
+        } catch (NotFoundException e) {
+            log.debug("이미 없는 볼륨입니다: 서버 {}", serverId);
+        }
+        log.info("서버 {}의 컨테이너와 월드를 지웠습니다.", serverId);
+    }
+
     private String create(MinecraftServerSpec spec, String configHash) {
         pullImageIfMissing();
 

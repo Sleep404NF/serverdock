@@ -19,6 +19,8 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Entity
 @Table(name = "servers")
@@ -67,6 +69,9 @@ public class Server extends BaseTimeEntity {
     @Column(name = "auto_restart", nullable = false, columnDefinition = "tinyint(1)")
     private boolean autoRestart;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     private Server(String name, User owner, String gameVersion, ServerLoader loader,
                    String loaderVersion, int memoryMb, int port) {
         this.name = name;
@@ -112,5 +117,17 @@ public class Server extends BaseTimeEntity {
 
     public void detachContainer() {
         this.containerId = null;
+    }
+
+    public boolean isInTrash() {
+        return deletedAt != null;
+    }
+
+    public void moveToTrash(LocalDateTime now) {
+        this.deletedAt = now;
+    }
+
+    public void restore() {
+        this.deletedAt = null;
     }
 }
