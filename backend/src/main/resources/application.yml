@@ -28,3 +28,6 @@ serverdock:
   admin:
     username: ${ADMIN_USERNAME:admin}
     password: ${ADMIN_PASSWORD:admin}
+  docker:
+    host: ${DOCKER_HOST:unix:///var/run/docker.sock}
+    image: ${MINECRAFT_IMAGE:itzg/minecraft-server:latest}

@@ -29,6 +29,8 @@ dependencies {
 	implementation("org.springframework.security:spring-security-oauth2-jose")
 	implementation("org.flywaydb:flyway-mysql")
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.2.0")
+	implementation("com.github.docker-java:docker-java-core:3.6.0")
+	implementation("com.github.docker-java:docker-java-transport-httpclient5:3.6.0")
 	compileOnly("org.projectlombok:lombok")
 	runtimeOnly("org.mariadb.jdbc:mariadb-java-client")
 	annotationProcessor("org.projectlombok:lombok")
