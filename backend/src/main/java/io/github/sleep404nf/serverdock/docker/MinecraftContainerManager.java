@@ -18,7 +18,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -26,7 +31,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 마인크래프트 서버 컨테이너를 만들고, 켜고, 끄고, 상태를 읽는다.
- * 컨테이너 이름은 serverdock-server-{id}, 월드는 serverdock-server-{id}-data 볼륨에 저장한다.
+ * 컨테이너는 이름(serverdock-server-{id})으로 찾고, 월드는 serverdock-server-{id}-data 볼륨에 저장한다.
+ * 컨테이너에는 설정 지문(config-hash) 라벨을 붙여서, 설정이 바뀌면 다음 시작 때 컨테이너를 다시 만든다.
  */
 @Slf4j
 @Component
@@ -36,65 +42,84 @@ public class MinecraftContainerManager {
     private static final int MC_PORT = 25565;
     private static final int STOP_TIMEOUT_SECONDS = 30;
     private static final long PULL_TIMEOUT_MINUTES = 10;
+    private static final String LABEL_SERVER_ID = "serverdock.server-id";
+    private static final String LABEL_CONFIG_HASH = "serverdock.config-hash";
 
     private final DockerClient dockerClient;
     private final DockerProperties dockerProperties;
 
     /**
-     * 컨테이너가 없으면 만들고, 꺼져 있으면 켠다. 컨테이너 id를 돌려준다.
+     * 서버를 켠다. 컨테이너가 없거나 설정이 바뀌었으면 새로 만들고, 이미 켜져 있으면 그대로 둔다.
+     * 켜져 있는 동안 바뀐 설정은 재시작할 때 적용된다. 컨테이너 id를 돌려준다.
      */
     public String start(MinecraftServerSpec spec) {
-        String containerId = findContainerId(spec.serverId()).orElseGet(() -> create(spec));
+        Optional<InspectContainerResponse> existing = findContainer(spec.serverId());
 
-        if (!isRunning(containerId)) {
-            try {
-                dockerClient.startContainerCmd(containerId).exec();
-            } catch (DockerException e) {
-                if (isPortConflict(e)) {
-                    throw new BusinessException(HttpStatus.CONFLICT,
-                            "포트 " + spec.port() + "를 이미 다른 프로그램이 쓰고 있습니다.");
-                }
-                throw e;
-            }
+        if (existing.isPresent() && isRunning(existing.get())) {
+            return existing.get().getId();
         }
+
+        String desiredHash = configHash(spec);
+        String containerId;
+        if (existing.isPresent() && desiredHash.equals(configHashOf(existing.get()))) {
+            containerId = existing.get().getId();
+        } else {
+            existing.ifPresent(old -> removeContainer(old.getId()));
+            containerId = create(spec, desiredHash);
+        }
+
+        startContainer(containerId, spec.port());
         return containerId;
     }
 
     /**
-     * 컨테이너를 멈춘다. 마인크래프트가 월드를 저장할 시간을 30초 준다.
+     * 서버를 껐다가 다시 켠다. 바뀐 설정이 있으면 이때 컨테이너를 다시 만든다.
      */
-    public void stop(String containerId) {
+    public String restart(MinecraftServerSpec spec) {
+        stop(spec.serverId());
+        return start(spec);
+    }
+
+    /**
+     * 서버를 끈다. 마인크래프트가 월드를 저장할 시간을 30초 준다.
+     */
+    public void stop(long serverId) {
         try {
-            dockerClient.stopContainerCmd(containerId).withTimeout(STOP_TIMEOUT_SECONDS).exec();
+            dockerClient.stopContainerCmd(containerName(serverId)).withTimeout(STOP_TIMEOUT_SECONDS).exec();
         } catch (NotModifiedException | NotFoundException e) {
-            log.debug("이미 꺼져 있거나 없는 컨테이너입니다: {}", containerId);
+            log.debug("이미 꺼져 있거나 없는 컨테이너입니다: 서버 {}", serverId);
         }
     }
 
     /**
-     * 컨테이너 상태. 마인크래프트 서버가 아직 뜨는 중이면 STARTING이다.
+     * 서버 상태. 마인크래프트 서버가 아직 뜨는 중이면 STARTING이다.
      */
-    public ServerStatus status(String containerId) {
-        if (containerId == null) {
+    public ServerStatus status(long serverId) {
+        Optional<InspectContainerResponse> container = findContainer(serverId);
+        if (container.isEmpty()) {
             return ServerStatus.NOT_CREATED;
         }
-        try {
-            InspectContainerResponse.ContainerState state =
-                    dockerClient.inspectContainerCmd(containerId).exec().getState();
 
-            if (!Boolean.TRUE.equals(state.getRunning())) {
-                return ServerStatus.STOPPED;
-            }
-            if (state.getHealth() != null && "starting".equals(state.getHealth().getStatus())) {
-                return ServerStatus.STARTING;
-            }
-            return ServerStatus.RUNNING;
-        } catch (NotFoundException e) {
-            return ServerStatus.NOT_CREATED;
+        InspectContainerResponse.ContainerState state = container.get().getState();
+        if (!Boolean.TRUE.equals(state.getRunning())) {
+            return ServerStatus.STOPPED;
         }
+        if (state.getHealth() != null && "starting".equals(state.getHealth().getStatus())) {
+            return ServerStatus.STARTING;
+        }
+        return ServerStatus.RUNNING;
     }
 
-    private String create(MinecraftServerSpec spec) {
+    /**
+     * 컨테이너가 만들어진 뒤로 설정이 바뀌었는지. true면 재시작해야 바뀐 설정이 적용된다.
+     */
+    public boolean isOutdated(MinecraftServerSpec spec) {
+        return findContainer(spec.serverId())
+                .map(container -> !configHash(spec).equals(configHashOf(container)))
+                .orElse(false);
+    }
+
+    private String create(MinecraftServerSpec spec, String configHash) {
         pullImageIfMissing();
 
         ExposedPort gamePort = ExposedPort.tcp(MC_PORT);
@@ -107,23 +132,68 @@ public class MinecraftContainerManager {
                 .withEnv(environment(spec))
                 .withExposedPorts(gamePort)
                 .withHostConfig(hostConfig)
-                .withLabels(Map.of("serverdock.server-id", String.valueOf(spec.serverId())))
+                .withLabels(Map.of(
+                        LABEL_SERVER_ID, String.valueOf(spec.serverId()),
+                        LABEL_CONFIG_HASH, configHash
+                ))
                 .exec();
 
-        log.info("컨테이너를 만들었습니다: {} (서버 {})", response.getId(), spec.serverId());
+        log.info("컨테이너를 만들었습니다: {} (서버 {}, 설정 {})", response.getId(), spec.serverId(), configHash);
         return response.getId();
     }
 
-    private Optional<String> findContainerId(long serverId) {
+    private void startContainer(String containerId, int port) {
         try {
-            return Optional.of(dockerClient.inspectContainerCmd(containerName(serverId)).exec().getId());
+            dockerClient.startContainerCmd(containerId).exec();
+        } catch (DockerException e) {
+            if (isPortConflict(e)) {
+                throw new BusinessException(HttpStatus.CONFLICT,
+                        "포트 " + port + "를 이미 다른 프로그램이 쓰고 있습니다.");
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * 컨테이너만 지운다. 월드가 든 볼륨은 이름이 붙은 볼륨이라 같이 지워지지 않는다.
+     */
+    private void removeContainer(String containerId) {
+        try {
+            dockerClient.removeContainerCmd(containerId).withForce(true).exec();
+            log.info("설정이 바뀌어 컨테이너를 지웠습니다: {}", containerId);
+        } catch (NotFoundException e) {
+            log.debug("이미 없는 컨테이너입니다: {}", containerId);
+        }
+    }
+
+    private Optional<InspectContainerResponse> findContainer(long serverId) {
+        try {
+            return Optional.of(dockerClient.inspectContainerCmd(containerName(serverId)).exec());
         } catch (NotFoundException e) {
             return Optional.empty();
         }
     }
 
-    private boolean isRunning(String containerId) {
-        return Boolean.TRUE.equals(dockerClient.inspectContainerCmd(containerId).exec().getState().getRunning());
+    private boolean isRunning(InspectContainerResponse container) {
+        return Boolean.TRUE.equals(container.getState().getRunning());
+    }
+
+    private String configHashOf(InspectContainerResponse container) {
+        Map<String, String> labels = container.getConfig().getLabels();
+        return labels == null ? null : labels.get(LABEL_CONFIG_HASH);
+    }
+
+    /**
+     * 이미지, 포트, 환경변수를 합친 설정 지문. 이 중 하나라도 바뀌면 값이 달라진다.
+     */
+    private String configHash(MinecraftServerSpec spec) {
+        String source = dockerProperties.image() + "|" + spec.port() + "|" + String.join(",", environment(spec));
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(source.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest).substring(0, 12);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256을 사용할 수 없습니다.", e);
+        }
     }
 
     /**
@@ -152,14 +222,15 @@ public class MinecraftContainerManager {
     }
 
     /**
-     * itzg/minecraft-server 이미지가 읽는 환경변수
+     * itzg/minecraft-server 이미지가 읽는 환경변수. 시간대는 백엔드가 도는 컴퓨터를 따른다.
      */
     private List<String> environment(MinecraftServerSpec spec) {
         List<String> env = new ArrayList<>(List.of(
                 "EULA=TRUE",
                 "TYPE=" + spec.type(),
                 "VERSION=" + spec.gameVersion(),
-                "MEMORY=" + spec.memoryMb() + "M"
+                "MEMORY=" + spec.memoryMb() + "M",
+                "TZ=" + ZoneId.systemDefault().getId()
         ));
 
         if (spec.loaderVersion() != null) {

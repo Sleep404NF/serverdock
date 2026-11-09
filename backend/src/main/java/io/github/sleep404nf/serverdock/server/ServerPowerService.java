@@ -21,10 +21,8 @@ public class ServerPowerService {
     public ServerStatusResponse start(Long userId, Long serverId) {
         Server server = serverAccessChecker.require(serverId, userId, ServerRole.MEMBER).getServer();
 
-        String containerId = containerManager.start(toSpec(server));
-        server.attachContainer(containerId);
-
-        return new ServerStatusResponse(server.getId(), containerManager.status(containerId));
+        server.attachContainer(containerManager.start(toSpec(server)));
+        return statusOf(server);
     }
 
     /**
@@ -33,11 +31,19 @@ public class ServerPowerService {
     public ServerStatusResponse stop(Long userId, Long serverId) {
         Server server = serverAccessChecker.require(serverId, userId, ServerRole.ADMIN).getServer();
 
-        if (server.getContainerId() != null) {
-            containerManager.stop(server.getContainerId());
-        }
+        containerManager.stop(server.getId());
+        return statusOf(server);
+    }
 
-        return new ServerStatusResponse(server.getId(), containerManager.status(server.getContainerId()));
+    /**
+     * 서버 재시작. ADMIN 이상만 가능하고, 바뀐 설정이 있으면 이때 적용된다.
+     */
+    @Transactional
+    public ServerStatusResponse restart(Long userId, Long serverId) {
+        Server server = serverAccessChecker.require(serverId, userId, ServerRole.ADMIN).getServer();
+
+        server.attachContainer(containerManager.restart(toSpec(server)));
+        return statusOf(server);
     }
 
     /**
@@ -45,7 +51,15 @@ public class ServerPowerService {
      */
     public ServerStatusResponse status(Long userId, Long serverId) {
         Server server = serverAccessChecker.require(serverId, userId, ServerRole.MEMBER).getServer();
-        return new ServerStatusResponse(server.getId(), containerManager.status(server.getContainerId()));
+        return statusOf(server);
+    }
+
+    private ServerStatusResponse statusOf(Server server) {
+        return new ServerStatusResponse(
+                server.getId(),
+                containerManager.status(server.getId()),
+                containerManager.isOutdated(toSpec(server))
+        );
     }
 
     private MinecraftServerSpec toSpec(Server server) {

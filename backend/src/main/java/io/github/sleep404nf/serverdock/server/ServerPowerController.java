@@ -28,6 +28,12 @@ public class ServerPowerController {
         return serverPowerService.stop(userId(jwt), serverId);
     }
 
+    @PostMapping("/restart")
+    public ServerStatusResponse restart(@AuthenticationPrincipal Jwt jwt,
+                                        @PathVariable Long serverId) {
+        return serverPowerService.restart(userId(jwt), serverId);
+    }
+
     @GetMapping("/status")
     public ServerStatusResponse status(@AuthenticationPrincipal Jwt jwt,
                                        @PathVariable Long serverId) {
