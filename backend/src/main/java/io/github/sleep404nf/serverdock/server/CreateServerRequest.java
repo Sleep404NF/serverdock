@@ -25,7 +25,7 @@ public record CreateServerRequest(
 
         @Min(value = 512, message = "메모리는 512MB 이상이어야 합니다.")
         @Max(value = 65536, message = "메모리는 65536MB 이하여야 합니다.")
-        int memoryMb,
+        Integer memoryMb,
 
         @Min(value = 1024, message = "포트는 1024 이상이어야 합니다.")
         @Max(value = 65535, message = "포트는 65535 이하여야 합니다.")

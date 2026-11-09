@@ -19,6 +19,7 @@ public class ServerService {
 
     private static final int DEFAULT_PORT = 25565;
     private static final int MAX_PORT = 65535;
+    private static final int DEFAULT_MEMORY_MB = 2048;
 
     private final ServerRepository serverRepository;
     private final ServerMemberRepository serverMemberRepository;
@@ -53,7 +54,7 @@ public class ServerService {
                 request.gameVersion(),
                 request.loader(),
                 request.loaderVersion(),
-                request.memoryMb(),
+                request.memoryMb() != null ? request.memoryMb() : DEFAULT_MEMORY_MB,
                 port
         ));
         ServerMember owner = serverMemberRepository.save(ServerMember.create(server, user, ServerRole.OWNER));
@@ -111,16 +112,5 @@ public class ServerService {
         }
 
         return ServerResponse.of(server, member.getRole());
-    }
-
-    /**
-     * 서버 삭제. OWNER만 가능하다.
-     */
-    @Transactional
-    public void delete(Long userId, Long serverId) {
-        serverAccessChecker.require(serverId, userId, ServerRole.OWNER);
-
-        serverMemberRepository.deleteAllByServerId(serverId);
-        serverRepository.deleteById(serverId);
     }
 }
