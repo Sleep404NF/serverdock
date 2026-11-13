@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ApiError, acceptInvite } from './api'
+import { navigate } from './navigate'
 
 interface Props {
   code: string
@@ -19,7 +20,7 @@ export default function InvitePage({ code, onLogout }: Props) {
     setError(null)
     try {
       const server = await acceptInvite(code)
-      window.location.hash = `#/servers/${server.id}`
+      navigate(`#/servers/${server.id}`)
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         onLogout()

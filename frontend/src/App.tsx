@@ -5,8 +5,10 @@ import LoginPage from './LoginPage'
 import ServerDetailPage from './ServerDetailPage'
 import type { ServerTab } from './ServerDetailPage'
 import ServerListPage from './ServerListPage'
+import CreateServerPage from './CreateServerPage'
+import TrashPage from './TrashPage'
 
-const SERVER_ROUTE = /^#\/servers\/(\d+)(?:\/(members|invites))?$/
+const SERVER_ROUTE = /^#\/servers\/(\d+)(?:\/(members|invites|settings))?$/
 const INVITE_ROUTE = /^#\/invite\/([A-Za-z0-9_-]+)$/
 
 /**
@@ -14,6 +16,9 @@ const INVITE_ROUTE = /^#\/invite\/([A-Za-z0-9_-]+)$/
  * - #/servers/3            3번 서버 (콘솔)
  * - #/servers/3/members    3번 서버 멤버
  * - #/servers/3/invites    3번 서버 초대 링크
+ * - #/servers/3/settings   3번 서버 설정
+ * - #/new                  새 서버 만들기
+ * - #/trash                휴지통
  * - #/invite/코드           초대 수락
  * - 그 외                   서버 목록
  */
@@ -59,6 +64,13 @@ export default function App() {
     const serverId = Number(serverMatch[1])
     const tab = (serverMatch[2] ?? 'console') as ServerTab
     return <ServerDetailPage key={serverId} serverId={serverId} tab={tab} onLogout={handleLogout} />
+  }
+
+  if (hash === '#/new') {
+    return <CreateServerPage onLogout={handleLogout} />
+  }
+  if (hash === '#/trash') {
+    return <TrashPage onLogout={handleLogout} />
   }
 
   return <ServerListPage onLogout={handleLogout} />

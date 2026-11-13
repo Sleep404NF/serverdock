@@ -23,6 +23,32 @@ export interface Server {
   createdAt: string
 }
 
+export interface TrashedServer {
+  id: number
+  name: string
+  port: number
+  deletedAt: string
+  /** 이 시각이 지나면 월드까지 완전히 지워진다 */
+  purgeAt: string
+}
+
+export interface CreateServerInput {
+  name: string
+  gameVersion: string
+  loader: ServerLoader
+  loaderVersion: string | null
+  memoryMb: number
+  /** null이면 25565부터 빈 포트를 자동으로 고른다 */
+  port: number | null
+}
+
+/** 보낸 값만 바뀐다 */
+export interface UpdateServerInput {
+  name?: string
+  memoryMb?: number
+  autoRestart?: boolean
+}
+
 export interface ServerStatusResponse {
   serverId: number
   status: ServerStatus
@@ -180,6 +206,27 @@ export function fetchServers() {
 
 export function fetchServer(serverId: number) {
   return request<Server>(`/api/servers/${serverId}`)
+}
+
+export function createServer(input: CreateServerInput) {
+  return request<Server>('/api/servers', { method: 'POST', body: JSON.stringify(input) })
+}
+
+export function updateServer(serverId: number, input: UpdateServerInput) {
+  return request<Server>(`/api/servers/${serverId}`, { method: 'PATCH', body: JSON.stringify(input) })
+}
+
+/** 서버를 끄고 휴지통으로 옮긴다. 보관 기간 안에는 복구할 수 있다. */
+export function deleteServer(serverId: number) {
+  return request<void>(`/api/servers/${serverId}`, { method: 'DELETE' })
+}
+
+export function fetchTrash() {
+  return request<TrashedServer[]>('/api/servers/trash')
+}
+
+export function restoreServer(serverId: number) {
+  return request<Server>(`/api/servers/${serverId}/restore`, { method: 'POST' })
 }
 
 export function fetchStatus(serverId: number) {

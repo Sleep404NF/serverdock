@@ -4,8 +4,10 @@ import type { PowerAction, Server, ServerStatus, ServerStatusResponse } from './
 import Console from './Console'
 import InvitesPanel from './InvitesPanel'
 import MembersPanel from './MembersPanel'
+import SettingsPanel from './SettingsPanel'
+import { formatMemory } from './serverOptions'
 
-export type ServerTab = 'console' | 'members' | 'invites'
+export type ServerTab = 'console' | 'members' | 'invites' | 'settings'
 
 const STATUS_LABEL: Record<ServerStatus, string> = {
   NOT_CREATED: '아직 안 켬',
@@ -31,6 +33,8 @@ export default function ServerDetailPage({ serverId, tab, onLogout }: Props) {
   const [statusError, setStatusError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [busy, setBusy] = useState<PowerAction | null>(null)
+  /** 올리면 상태를 바로 다시 읽는다. 설정을 저장한 뒤 "재시작 필요"를 바로 보여주려고 쓴다. */
+  const [statusVersion, setStatusVersion] = useState(0)
 
   /** 401이면 로그아웃하고, 아니면 화면에 보여줄 메시지를 돌려준다. */
   const toMessage = useCallback(
@@ -78,7 +82,7 @@ export default function ServerDetailPage({ serverId, tab, onLogout }: Props) {
       cancelled = true
       window.clearInterval(timer)
     }
-  }, [serverId, loaded, currentStatus, toMessage])
+  }, [serverId, loaded, currentStatus, statusVersion, toMessage])
 
   async function runAction(action: PowerAction) {
     setBusy(action)
@@ -94,6 +98,12 @@ export default function ServerDetailPage({ serverId, tab, onLogout }: Props) {
 
   const running = currentStatus === 'STARTING' || currentStatus === 'RUNNING'
   const canManage = server !== null && hasRoleAtLeast(server.myRole, 'ADMIN')
+  const isOwner = server?.myRole === 'OWNER'
+
+  function handleSaved(updated: Server) {
+    setServer(updated)
+    setStatusVersion((version) => version + 1)
+  }
 
   return (
     <main className="page">
@@ -121,7 +131,7 @@ export default function ServerDetailPage({ serverId, tab, onLogout }: Props) {
 
             <p className="meta">
               {server.gameVersion} · {server.loader}
-              {server.loaderVersion && ` ${server.loaderVersion}`} · {server.memoryMb} MB · 포트 {server.port}
+              {server.loaderVersion && ` ${server.loaderVersion}`} · {formatMemory(server.memoryMb)} · 포트 {server.port}
               <span className={`role role-${server.myRole.toLowerCase()}`}>{server.myRole}</span>
             </p>
 
@@ -172,6 +182,11 @@ export default function ServerDetailPage({ serverId, tab, onLogout }: Props) {
                 초대 링크
               </a>
             )}
+            {isOwner && (
+              <a href={`#/servers/${serverId}/settings`} aria-current={tab === 'settings' ? 'page' : undefined}>
+                설정
+              </a>
+            )}
           </nav>
 
           {/* 콘솔은 다른 탭에 가 있어도 연결과 명령어 기록을 유지하도록 숨기기만 한다. */}
@@ -190,6 +205,12 @@ export default function ServerDetailPage({ serverId, tab, onLogout }: Props) {
               <InvitesPanel serverId={serverId} myRole={server.myRole} onLogout={onLogout} />
             ) : (
               <p className="muted">초대 링크는 ADMIN 이상만 볼 수 있습니다.</p>
+            ))}
+          {tab === 'settings' &&
+            (isOwner ? (
+              <SettingsPanel server={server} onSaved={handleSaved} onLogout={onLogout} />
+            ) : (
+              <p className="muted">설정은 OWNER만 바꿀 수 있습니다.</p>
             ))}
         </>
       )}

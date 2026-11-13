@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, changeMemberRole, fetchMe, fetchMembers, outranks, removeMember, sortMembers } from './api'
 import type { Me, Member, ServerRole } from './api'
 import { formatDate } from './format'
+import { navigate } from './navigate'
 
 /** 내보내기/나가기는 한 번 더 눌러야 실행된다. 이 시간 안에 다시 안 누르면 취소. */
 const CONFIRM_TIMEOUT_MS = 4000
@@ -70,7 +71,7 @@ export default function MembersPanel({ serverId, myRole, onLogout }: Props) {
     try {
       await removeMember(serverId, member.userId)
       if (isMe) {
-        window.location.hash = '#/'
+        navigate('#/')
         return
       }
       setMembers((list) => list && list.filter((item) => item.userId !== member.userId))
