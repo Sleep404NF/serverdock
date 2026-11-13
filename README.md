@@ -12,7 +12,7 @@
 
 </div>
 
-> 개발 중이다. 지금은 계정, 서버 설정, 멤버와 권한, 초대 링크 API에 더해 Docker로 실제 마인크래프트 서버를 켜고 끄는 것까지 동작한다. 실시간 콘솔과 웹 대시보드가 다음 단계다.
+> 개발 중이다. 웹 대시보드에서 서버를 만들고, 켜고 끄고, 실시간 콘솔로 명령어를 보내고, 친구를 초대하는 것까지 동작한다. 디스코드 봇과 월드 백업이 다음 단계다.
 
 ## 목차
 
@@ -45,7 +45,10 @@ ServerDock은 이걸 웹 대시보드와 디스코드 명령 하나로 해결하
 | 멤버 관리 (역할 변경, 내보내기, 나가기) | ✅ |
 | Docker로 마인크래프트 서버 시작, 중지, 재시작, 상태 확인 | ✅ |
 | 설정이 바뀌면 재시작 때 컨테이너 다시 만들기 (월드 유지) | ✅ |
-| 실시간 콘솔 (로그, 명령어) | 🛠️ |
+| 자동 재시작 (서버가 죽거나 컴퓨터를 다시 켰을 때) | ✅ |
+| 포트 충돌 감지 (다른 프로그램이 쓰는 포트면 켜지 않음) | ✅ |
+| 실시간 콘솔 (로그 스트리밍, 명령어) | ✅ |
+| 웹 대시보드 (서버 관리, 콘솔, 멤버, 초대, 휴지통) | ✅ |
 | 디스코드 봇 (서버 켜기, 상태 알림) | 🛠️ |
 | 월드 자동 백업과 복원 | 🛠️ |
 
@@ -57,7 +60,7 @@ ServerDock은 이걸 웹 대시보드와 디스코드 명령 하나로 해결하
 
 ```mermaid
 flowchart LR
-    Web["웹 대시보드<br/>(React, 예정)"] -.->|REST / WebSocket| API
+    Web["웹 대시보드<br/>(React)"] -->|REST / SSE| API
     Bot["디스코드 봇<br/>(예정)"] -.-> API
 
     subgraph Host["사용자 컴퓨터"]
@@ -91,10 +94,14 @@ flowchart LR
 
 ## 시작하기
 
-**필요한 것**: JDK 25, Docker (macOS는 [OrbStack](https://orbstack.dev) 권장)
+**필요한 것**: JDK 25, Node.js, Docker (macOS는 [OrbStack](https://orbstack.dev) 권장)
 
 ```bash
+# 백엔드 (http://localhost:8080)
 cd backend && ./gradlew bootRun
+
+# 웹 대시보드 (http://localhost:5173), 다른 터미널에서
+cd frontend && npm install && npm run dev
 ```
 
 DB(MariaDB) 컨테이너는 백엔드가 시작할 때 `deploy/compose.dev.yaml`로 알아서 띄운다(Spring Boot Docker Compose 연동). Docker만 켜져 있으면 된다. 백엔드를 꺼도 DB는 계속 켜져 있다.
@@ -116,7 +123,7 @@ DB를 초기화하려면 `docker compose -f deploy/compose.dev.yaml down -v`로 
 ```
 serverdock/
 ├── backend/    Spring Boot API
-├── frontend/   React (로그인, 서버 목록까지)
+├── frontend/   React 웹 대시보드
 ├── deploy/     Docker Compose 설정
 └── docs/       문서
 ```
@@ -137,7 +144,7 @@ serverdock/
 - [x] 초대 링크와 멤버 관리
 - [x] Docker로 마인크래프트 서버 실행, 시작/중지/재시작
 - [x] 서버 삭제 시 2일간 휴지통 보관
-- [ ] 실시간 콘솔 (로그 스트리밍, 명령어)
-- [ ] 웹 대시보드 (React)
+- [x] 실시간 콘솔 (로그 스트리밍, 명령어)
+- [x] 웹 대시보드 (React)
 - [ ] 디스코드 봇, 월드 자동 백업
 - [ ] `docker compose` 한 번으로 설치
