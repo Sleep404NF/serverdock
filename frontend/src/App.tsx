@@ -7,6 +7,7 @@ import type { ServerTab } from './ServerDetailPage'
 import ServerListPage from './ServerListPage'
 import CreateServerPage from './CreateServerPage'
 import TrashPage from './TrashPage'
+import AccountPage from './AccountPage'
 
 const SERVER_ROUTE = /^#\/servers\/(\d+)(?:\/(members|invites|settings))?$/
 const INVITE_ROUTE = /^#\/invite\/([A-Za-z0-9_-]+)$/
@@ -19,6 +20,7 @@ const INVITE_ROUTE = /^#\/invite\/([A-Za-z0-9_-]+)$/
  * - #/servers/3/settings   3번 서버 설정
  * - #/new                  새 서버 만들기
  * - #/trash                휴지통
+ * - #/account              내 계정 (디스코드 연결). 디스코드에서 돌아오면 ?discord=결과 가 붙는다
  * - #/invite/코드           초대 수락
  * - 그 외                   서버 목록
  */
@@ -71,6 +73,10 @@ export default function App() {
   }
   if (hash === '#/trash') {
     return <TrashPage onLogout={handleLogout} />
+  }
+  if (hash === '#/account' || hash.startsWith('#/account?')) {
+    const result = new URLSearchParams(hash.split('?')[1] ?? '').get('discord')
+    return <AccountPage discordResult={result} onLogout={handleLogout} />
   }
 
   return <ServerListPage onLogout={handleLogout} />

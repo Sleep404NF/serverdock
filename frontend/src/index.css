@@ -572,3 +572,42 @@ label.checkbox > span {
   margin-top: 16px;
   border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
 }
+
+/* 내 계정, 디스코드 */
+
+.account-link {
+  color: var(--muted);
+}
+
+.banner {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.banner.success {
+  background: color-mix(in srgb, #16a34a 14%, transparent);
+  color: var(--text);
+}
+
+.banner.error {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--text);
+}
+
+.discord-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.discord-row p {
+  margin: 4px 0 0;
+}
+
+button.discord {
+  background: #5865f2;
+  white-space: nowrap;
+}

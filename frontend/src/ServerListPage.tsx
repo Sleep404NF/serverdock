@@ -41,10 +41,10 @@ export default function ServerListPage({ onLogout }: Props) {
         <h1>내 서버</h1>
         <div className="user">
           {me && (
-            <span>
+            <a href="#/account" className="account-link">
               {me.username}
               {me.systemRole === 'ADMIN' && ' (관리자)'}
-            </span>
+            </a>
           )}
           <button type="button" className="secondary" onClick={onLogout}>
             로그아웃

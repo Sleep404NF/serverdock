@@ -4,3 +4,8 @@
 export function navigate(hash: string) {
   window.location.hash = hash
 }
+
+/** 다른 사이트(디스코드 승인 화면 등)로 이동한다. */
+export function goToExternal(url: string) {
+  window.location.assign(url)
+}

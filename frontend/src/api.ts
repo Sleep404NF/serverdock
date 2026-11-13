@@ -8,6 +8,9 @@ export interface Me {
   id: number
   username: string
   systemRole: 'ADMIN' | 'USER'
+  discordLinked: boolean
+  /** 연결한 디스코드 계정의 표시 이름 */
+  discordUsername: string | null
 }
 
 export interface Server {
@@ -198,6 +201,16 @@ export async function signup(username: string, password: string) {
 
 export function fetchMe() {
   return request<Me>('/api/auth/me')
+}
+
+/** 디스코드 연결 시작. 받은 주소로 이동하면 디스코드 승인 화면이 나온다. */
+export async function startDiscordLink() {
+  const { url } = await request<{ url: string }>('/api/discord/link', { method: 'POST' })
+  return url
+}
+
+export function unlinkDiscord() {
+  return request<void>('/api/discord/link', { method: 'DELETE' })
 }
 
 export function fetchServers() {
