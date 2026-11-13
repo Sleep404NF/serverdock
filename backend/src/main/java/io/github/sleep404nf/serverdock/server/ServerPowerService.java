@@ -69,7 +69,8 @@ public class ServerPowerService {
                 server.getLoader().name(),
                 server.getGameVersion(),
                 server.getLoaderVersion(),
-                server.getMemoryMb()
+                server.getMemoryMb(),
+                server.isAutoRestart()
         );
     }
 }

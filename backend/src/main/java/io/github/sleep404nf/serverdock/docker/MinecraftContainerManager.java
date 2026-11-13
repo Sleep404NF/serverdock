@@ -11,6 +11,7 @@ import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.PortBinding;
 import com.github.dockerjava.api.model.Ports;
+import com.github.dockerjava.api.model.RestartPolicy;
 import com.github.dockerjava.api.model.Volume;
 import io.github.sleep404nf.serverdock.common.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -151,7 +152,8 @@ public class MinecraftContainerManager {
         ExposedPort gamePort = ExposedPort.tcp(MC_PORT);
         HostConfig hostConfig = HostConfig.newHostConfig()
                 .withPortBindings(new PortBinding(Ports.Binding.bindPort(spec.port()), gamePort))
-                .withBinds(new Bind(volumeName(spec.serverId()), new Volume("/data")));
+                .withBinds(new Bind(volumeName(spec.serverId()), new Volume("/data")))
+                .withRestartPolicy(restartPolicy(spec));
 
         CreateContainerResponse response = dockerClient.createContainerCmd(dockerProperties.image())
                 .withName(containerName(spec.serverId()))
@@ -257,7 +259,8 @@ public class MinecraftContainerManager {
      * 이미지, 포트, 환경변수를 합친 설정 지문. 이 중 하나라도 바뀌면 값이 달라진다.
      */
     private String configHash(MinecraftServerSpec spec) {
-        String source = dockerProperties.image() + "|" + spec.port() + "|" + String.join(",", environment(spec));
+        String source = dockerProperties.image() + "|" + spec.port() + "|" + String.join(",", environment(spec))
+                + "|restart=" + restartPolicyName(spec);
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(source.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest).substring(0, 12);
@@ -313,6 +316,22 @@ public class MinecraftContainerManager {
             }
         }
         return env;
+    }
+
+    /**
+     * 자동 재시작. unless-stopped는 서버가 죽거나 Docker가 다시 켜지면 다시 켜고,
+     * 사용자가 중지 버튼으로 끈 서버는 그대로 둔다.
+     */
+    private RestartPolicy restartPolicy(MinecraftServerSpec spec) {
+        return spec.autoRestart() ? RestartPolicy.unlessStoppedRestart() : RestartPolicy.noRestart();
+    }
+
+    /**
+     * 설정 지문에 넣을 재시작 정책 이름. RestartPolicy 객체를 그대로 문자열로 만들면
+     * 매번 값이 달라질 수 있어서(toString이 정해져 있지 않음) 이름을 직접 쓴다.
+     */
+    private String restartPolicyName(MinecraftServerSpec spec) {
+        return spec.autoRestart() ? "unless-stopped" : "no";
     }
 
     private boolean isPortConflict(DockerException e) {

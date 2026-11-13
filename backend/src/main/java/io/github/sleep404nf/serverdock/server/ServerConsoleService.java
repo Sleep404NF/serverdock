@@ -66,6 +66,10 @@ public class ServerConsoleService {
         if (command.isEmpty()) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "명령어를 입력해주세요.");
         }
+        // 콘솔에서 stop으로 끄면 자동 재시작이 켜진 서버는 Docker가 바로 다시 켜고, 서버 상태도 꼬인다.
+        if (command.equalsIgnoreCase("stop")) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "서버를 끄려면 중지 버튼을 써주세요.");
+        }
 
         log.info("콘솔 명령어: 서버 {}, 사용자 {}: {}", serverId, userId, command);
         return new ConsoleCommandResponse(command, minecraftConsole.execute(serverId, command));
