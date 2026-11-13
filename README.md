@@ -12,7 +12,7 @@
 
 </div>
 
-> 개발 중이다. 웹 대시보드에서 서버를 만들고, 켜고 끄고, 실시간 콘솔로 명령어를 보내고, 친구를 초대하는 것까지 동작한다. 디스코드 봇과 월드 백업이 다음 단계다.
+> 개발 중이다. 웹 대시보드에서 서버를 만들고, 켜고 끄고, 실시간 콘솔로 명령어를 보내고, 친구를 초대하는 것까지 동작한다. 디스코드에서도 서버를 켜고 상태 알림을 받을 수 있다. 월드 백업이 다음 단계다.
 
 ## 목차
 
@@ -49,25 +49,25 @@ ServerDock은 이걸 웹 대시보드와 디스코드 명령 하나로 해결하
 | 포트 충돌 감지 (다른 프로그램이 쓰는 포트면 켜지 않음) | ✅ |
 | 실시간 콘솔 (로그 스트리밍, 명령어) | ✅ |
 | 웹 대시보드 (서버 관리, 콘솔, 멤버, 초대, 휴지통) | ✅ |
-| 디스코드 봇 (서버 켜기, 상태 알림) | 🛠️ |
+| 디스코드 봇 (서버 켜기·끄기·상태, 켜짐·꺼짐·비정상 종료 알림) | ✅ |
 | 월드 자동 백업과 복원 | 🛠️ |
 
 ✅ 완료 · 🛠️ 예정
 
 ## 구조
 
-모든 구성 요소가 사용자 컴퓨터 한 대에서 돈다. 점선은 아직 만들지 않은 부분이다.
+모든 구성 요소가 사용자 컴퓨터 한 대에서 돈다. 디스코드 봇은 별도 프로그램이 아니라 백엔드 안에서 같이 돌고, 웹과 같은 서비스와 권한 검사를 그대로 쓴다.
 
 ```mermaid
 flowchart LR
-    Web["웹 대시보드<br/>(React)"] -->|REST / SSE| API
-    Bot["디스코드 봇<br/>(예정)"] -.-> API
-
     subgraph Host["사용자 컴퓨터"]
-        API["Spring Boot API<br/>인증 · 권한 · 서버 관리"] --> DB[("MariaDB")]
+        Bot["디스코드 봇<br/>(JDA, 백엔드 안)"] --> API["Spring Boot API<br/>인증 · 권한 · 서버 관리"]
+        API --> DB[("MariaDB")]
         API -->|Docker API| MC["마인크래프트 서버<br/>(컨테이너)"]
     end
 
+    Web["웹 대시보드<br/>(React)"] -->|REST / SSE| API
+    Discord["디스코드"] <-->|명령어 / 알림| Bot
     Friends["친구들의 마인크래프트"] -->|게임 접속| MC
 ```
 
@@ -110,6 +110,23 @@ DB(MariaDB) 컨테이너는 백엔드가 시작할 때 `deploy/compose.dev.yaml`
 
 테스트는 `cd backend && ./gradlew test`로 돌린다. 테스트마다 Testcontainers로 빈 MariaDB를 새로 띄우므로 개발용 DB는 건드리지 않고, Docker만 켜져 있으면 된다. 권한(401/403/404), 초대 링크(만료·횟수·폐기), 멤버 규칙, 휴지통과 완전 삭제를 API 단위로 확인한다.
 
+### 디스코드 봇 (선택)
+
+토큰을 넣지 않으면 봇 없이 웹만 동작한다.
+
+1. [디스코드 개발자 포털](https://discord.com/developers/applications)에서 앱을 만든다.
+2. 저장소 최상위에서 `cp .env.example .env` 후 Bot 탭의 토큰, OAuth2 탭의 Client ID와 Client Secret을 채운다. `.env`는 git에 올라가지 않는다.
+3. OAuth2 탭 Redirects에 `http://localhost:5173/api/discord/callback`을 등록한다.
+4. `https://discord.com/oauth2/authorize?client_id=클라이언트ID&scope=bot+applications.commands&permissions=19456`로 봇을 디스코드 서버에 초대한다.
+5. 백엔드를 재시작하고, 웹의 내 계정 화면에서 디스코드를 연결한다.
+
+| 명령어 | 권한 |
+| --- | --- |
+| `/server list` | 연결된 계정 |
+| `/server status`, `/server start` | MEMBER |
+| `/server stop` | ADMIN |
+| `/server notify`, `/server unnotify` (이 채널로 상태 알림) | ADMIN |
+
 DB를 초기화하려면 `docker compose -f deploy/compose.dev.yaml down -v`로 지운 뒤 다시 띄우고, 백엔드를 재시작한다. 테이블은 백엔드가 시작할 때 Flyway가 만든다.
 
 ## API 문서
@@ -137,7 +154,8 @@ serverdock/
 | `server` | 서버 설정, 멤버와 역할, 서버별 권한 검사, 전원 제어, 휴지통 |
 | `invite` | 초대 링크 생성, 폐기, 수락 |
 | `docker` | 마인크래프트 컨테이너 생성, 시작/중지, 상태 확인, 삭제 |
-| `backup`, `discord` | 다음 단계에서 구현 |
+| `discord` | 디스코드 계정 연결(OAuth2), 봇 명령어, 상태 알림 |
+| `backup` | 다음 단계에서 구현 |
 
 ## 로드맵
 
@@ -148,5 +166,6 @@ serverdock/
 - [x] 서버 삭제 시 2일간 휴지통 보관
 - [x] 실시간 콘솔 (로그 스트리밍, 명령어)
 - [x] 웹 대시보드 (React)
-- [ ] 디스코드 봇, 월드 자동 백업
+- [x] 디스코드 봇 (명령어, 상태 알림)
+- [ ] 월드 자동 백업과 복원
 - [ ] `docker compose` 한 번으로 설치
