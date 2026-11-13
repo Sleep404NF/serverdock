@@ -31,6 +31,11 @@ dependencies {
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.2.0")
 	implementation("com.github.docker-java:docker-java-core:3.6.0")
 	implementation("com.github.docker-java:docker-java-transport-httpclient5:3.6.0")
+	// 디스코드 봇. 음성 기능은 안 쓰므로 음성용 라이브러리는 뺀다.
+	implementation("net.dv8tion:JDA:6.4.1") {
+		exclude(module = "opus-java")
+		exclude(module = "tink")
+	}
 	developmentOnly("org.springframework.boot:spring-boot-docker-compose")
 	compileOnly("org.projectlombok:lombok")
 	runtimeOnly("org.mariadb.jdbc:mariadb-java-client")

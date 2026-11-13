@@ -7,6 +7,7 @@ public record UserResponse(
         String username,
         SystemRole systemRole,
         boolean discordLinked,
+        String discordUsername,
         LocalDateTime createdAt
 ) {
     public static UserResponse from(User user) {
@@ -15,6 +16,7 @@ public record UserResponse(
                 user.getUsername(),
                 user.getSystemRole(),
                 user.getDiscordUserId() != null,
+                user.getDiscordUsername(),
                 user.getCreatedAt()
         );
     }

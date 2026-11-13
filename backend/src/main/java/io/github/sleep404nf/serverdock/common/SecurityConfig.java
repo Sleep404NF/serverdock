@@ -41,6 +41,8 @@ public class SecurityConfig {
                         // 실시간 로그(SSE)가 끝날 때 생기는 내부 재요청. 처음 요청에서 이미 인증을 거쳤다.
                         .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
+                        // 디스코드가 브라우저를 돌려보내는 주소라 토큰이 없다. 누구인지는 state 값으로 확인한다.
+                        .requestMatchers(HttpMethod.GET, "/api/discord/callback").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info", "/error").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated())

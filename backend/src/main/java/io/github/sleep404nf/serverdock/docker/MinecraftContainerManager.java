@@ -105,12 +105,11 @@ public class MinecraftContainerManager {
      * 서버 상태. 마인크래프트 서버가 아직 뜨는 중이면 STARTING이다.
      */
     public ServerStatus status(long serverId) {
-        Optional<InspectContainerResponse> container = findContainer(serverId);
-        if (container.isEmpty()) {
-            return ServerStatus.NOT_CREATED;
-        }
+        return findContainer(serverId).map(this::status).orElse(ServerStatus.NOT_CREATED);
+    }
 
-        InspectContainerResponse.ContainerState state = container.get().getState();
+    private ServerStatus status(InspectContainerResponse container) {
+        InspectContainerResponse.ContainerState state = container.getState();
         if (!Boolean.TRUE.equals(state.getRunning())) {
             return ServerStatus.STOPPED;
         }
@@ -118,6 +117,18 @@ public class MinecraftContainerManager {
             return ServerStatus.STARTING;
         }
         return ServerStatus.RUNNING;
+    }
+
+    /**
+     * 상태와 함께 종료 코드, 자동 재시작 횟수까지 읽는다. 디스코드 알림에서 비정상 종료를 가려낼 때 쓴다.
+     */
+    public ContainerSnapshot snapshot(long serverId) {
+        return findContainer(serverId)
+                .map(container -> new ContainerSnapshot(
+                        status(container),
+                        container.getState().getExitCodeLong(),
+                        container.getRestartCount() == null ? 0 : container.getRestartCount()))
+                .orElseGet(ContainerSnapshot::notCreated);
     }
 
     /**

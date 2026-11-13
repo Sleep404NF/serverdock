@@ -39,6 +39,9 @@ public class User extends BaseTimeEntity {
     @Column(name = "discord_user_id", unique = true, length = 32)
     private String discordUserId;
 
+    @Column(name = "discord_username", length = 64)
+    private String discordUsername;
+
     private User(String username, String passwordHash, SystemRole systemRole) {
         this.username = username;
         this.passwordHash = passwordHash;
@@ -57,11 +60,13 @@ public class User extends BaseTimeEntity {
         this.passwordHash = passwordHash;
     }
 
-    public void linkDiscord(String discordUserId) {
+    public void linkDiscord(String discordUserId, String discordUsername) {
         this.discordUserId = discordUserId;
+        this.discordUsername = discordUsername;
     }
 
     public void unlinkDiscord() {
         this.discordUserId = null;
+        this.discordUsername = null;
     }
 }

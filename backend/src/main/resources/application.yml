@@ -1,6 +1,9 @@
 spring:
   application:
     name: serverdock-backend
+  # 저장소 최상위의 .env 파일(git에 안 올라감)에서 디스코드 토큰 같은 비밀값을 읽는다. 없으면 건너뛴다.
+  config:
+    import: optional:file:.env[.properties]
   datasource:
     url: jdbc:mariadb://localhost:3307/serverdock
     username: ${DB_USERNAME:serverdock}
@@ -40,3 +43,10 @@ serverdock:
     image: ${MINECRAFT_IMAGE:itzg/minecraft-server:latest}
   trash:
     retention: ${TRASH_RETENTION:2d}
+  # 디스코드. bot-token이 비어 있으면 봇을 켜지 않고, client-id/secret이 비어 있으면 계정 연결을 막는다.
+  discord:
+    bot-token: ${DISCORD_BOT_TOKEN:}
+    client-id: ${DISCORD_CLIENT_ID:}
+    client-secret: ${DISCORD_CLIENT_SECRET:}
+    redirect-uri: ${DISCORD_REDIRECT_URI:http://localhost:5173/api/discord/callback}
+    web-base-url: ${SERVERDOCK_WEB_URL:http://localhost:5173}
