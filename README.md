@@ -108,6 +108,8 @@ DB(MariaDB) 컨테이너는 백엔드가 시작할 때 `deploy/compose.dev.yaml`
 
 개발용 관리자 계정은 백엔드가 시작할 때 자동으로 만들어진다: `admin` / `admin`
 
+테스트는 `cd backend && ./gradlew test`로 돌린다. 테스트마다 Testcontainers로 빈 MariaDB를 새로 띄우므로 개발용 DB는 건드리지 않고, Docker만 켜져 있으면 된다. 권한(401/403/404), 초대 링크(만료·횟수·폐기), 멤버 규칙, 휴지통과 완전 삭제를 API 단위로 확인한다.
+
 DB를 초기화하려면 `docker compose -f deploy/compose.dev.yaml down -v`로 지운 뒤 다시 띄우고, 백엔드를 재시작한다. 테이블은 백엔드가 시작할 때 Flyway가 만든다.
 
 ## API 문서
